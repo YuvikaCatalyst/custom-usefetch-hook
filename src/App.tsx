@@ -20,7 +20,7 @@ const App = () => {
 
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: "red" }}> Error: {error}</p>}
-      {data && (
+      {data && !loading && (
         <div>
           <h2>{data.title}</h2>
           <p>{data.body}</p>

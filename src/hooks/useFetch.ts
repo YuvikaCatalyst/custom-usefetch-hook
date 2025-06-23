@@ -22,42 +22,42 @@ const useFetch = ({
   retryOnFailCount = 0,
   retryOnFailInterval = 1000,
 }: usefetchArgs) => {
-    
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<any>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   //useRefs for pollInterval and retryCount-using useRef bcz there was no requirement of UI updates and need of re-rendering
-  const fetchSuccessful=useRef<number|null>(null);
-   const retryCount = useRef(0);
+  const fetchSuccessful = useRef<number | null>(null);
+  const retryCount = useRef(0);
 
-   //cleanup function for fetchSuccessful
-  const clearPoll=()=>{
-    if(fetchSuccessful.current){
+  //cleanup function for fetchSuccessful
+  const clearPoll = () => {
+    if (fetchSuccessful.current) {
       clearInterval(fetchSuccessful.current);
-      fetchSuccessful.current=null;
+      fetchSuccessful.current = null;
     }
-  }
+  };
 
   const fetchResponse = async () => {
     setLoading(true);
+    const initialTime=Date.now();
     try {
       const response = await api.get(url);
       const result = transformer ? transformer(response.data) : response.data;
       setData(result);
-      retryCount.current=0;
-      
+      retryCount.current = 0;
+
       if (onSuccess) {
         onSuccess(result);
       }
-// pollInterval will happen only if API run was successful
-      if(pollInterval && !fetchSuccessful.current){
-        fetchSuccessful.current=setInterval(fetchResponse,pollInterval)
+      // pollInterval will happen only if API run was successful
+      if (pollInterval && !fetchSuccessful.current) {
+        fetchSuccessful.current = setInterval(fetchResponse, pollInterval);
       }
     } catch (e: any) {
       if (retryOnFailCount > retryCount.current) {
         setTimeout(() => {
-         retryCount.current+=1;
+          retryCount.current += 1;
           fetchResponse();
         }, retryOnFailInterval);
       } else {
@@ -68,7 +68,10 @@ const useFetch = ({
         }
       }
     } finally {
-      setLoading(false);
+    const endTime=Date.now();
+    const finalTime=endTime-initialTime;
+    const leftOverTime=2000-finalTime;
+    setTimeout(() => setLoading(false), leftOverTime > 0 ? leftOverTime : 0);
     }
   };
 
@@ -77,11 +80,10 @@ const useFetch = ({
       fetchResponse();
     }
 
-     return () => {
+    return () => {
       clearPoll();
     };
   }, [url]);
-
 
   return {
     data,
