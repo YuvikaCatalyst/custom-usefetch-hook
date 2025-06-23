@@ -29,6 +29,8 @@ const useFetch = ({
   //useRefs for pollInterval and retryCount-using useRef bcz there was no requirement of UI updates and need of re-rendering
   const fetchSuccessful = useRef<number | null>(null);
   const retryCount = useRef(0);
+  //ref for abortController for cancelling api functionality
+  const abortController = useRef<AbortController |null>(null);
 
   //cleanup function for fetchSuccessful
   const clearPoll = () => {
@@ -38,11 +40,21 @@ const useFetch = ({
     }
   };
 
+  const cancel = () => {
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+  };
+
   const fetchResponse = async () => {
+    cancel();
+    abortController.current = new AbortController();
     setLoading(true);
-    const initialTime=Date.now();
+    const initialTime = Date.now();
     try {
-      const response = await api.get(url);
+      const response = await api.get(url, {
+        signal: abortController.current.signal,
+      });
       const result = transformer ? transformer(response.data) : response.data;
       setData(result);
       retryCount.current = 0;
@@ -55,6 +67,9 @@ const useFetch = ({
         fetchSuccessful.current = setInterval(fetchResponse, pollInterval);
       }
     } catch (e: any) {
+      if (e.name === "CanceledError" || e.name === "AbortError") {
+        return;
+      }
       if (retryOnFailCount > retryCount.current) {
         setTimeout(() => {
           retryCount.current += 1;
@@ -68,10 +83,10 @@ const useFetch = ({
         }
       }
     } finally {
-    const endTime=Date.now();
-    const finalTime=endTime-initialTime;
-    const leftOverTime=2000-finalTime;
-    setTimeout(() => setLoading(false), leftOverTime > 0 ? leftOverTime : 0);
+      const endTime = Date.now();
+      const finalTime = endTime - initialTime;
+      const leftOverTime = 2000 - finalTime;
+      setTimeout(() => setLoading(false), leftOverTime > 0 ? leftOverTime : 0);
     }
   };
 
@@ -90,6 +105,7 @@ const useFetch = ({
     error,
     loading,
     refetch: fetchResponse,
+    cancel
   };
 };
 
