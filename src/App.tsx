@@ -1,4 +1,4 @@
-import useFetch from "./hooks/useFetch";
+import useFetch from "hooks/useFetch";
 
 const App = () => {
   const { data, error, loading, refetch } = useFetch({

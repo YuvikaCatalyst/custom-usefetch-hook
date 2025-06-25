@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import api from "../services/api.service";
+import apiService from "services/api.service";
 
-type usefetchArgs = {
+type UsefetchArgs = {
   url: string;
   autoFetch?: boolean;
   transformer?: (data: any) => any;
@@ -12,31 +12,39 @@ type usefetchArgs = {
   retryOnFailInterval?: number;
 };
 
-const useFetch = ({
-  url,
-  autoFetch = true,
-  transformer,
-  onSuccess,
-  onError,
-  pollInterval,
-  retryOnFailCount = 0,
-  retryOnFailInterval = 1000,
-}: usefetchArgs) => {
+const defaultArgs = {
+  autoFetch: true,
+  retryOnFailCount: 0,
+  retryOnFailInterval: 1000,
+};
+
+const useFetch = (args: UsefetchArgs) => {
+  const {
+    url,
+    autoFetch,
+    transformer,
+    onSuccess,
+    onError,
+    pollInterval,
+    retryOnFailCount,
+    retryOnFailInterval,
+  } = { ...defaultArgs, ...args };
+
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<any>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   //useRefs for pollInterval and retryCount-using useRef bcz there was no requirement of UI updates and need of re-rendering
-  const fetchSuccessful = useRef<number | null>(null);
-  const retryCount = useRef(0);
+  const fetchSuccessfulRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
   //ref for abortController for cancelling api functionality
-  const abortController = useRef<AbortController |null>(null);
+  const abortController = useRef<AbortController | null>(null);
 
   //cleanup function for fetchSuccessful
   const clearPoll = () => {
-    if (fetchSuccessful.current) {
-      clearInterval(fetchSuccessful.current);
-      fetchSuccessful.current = null;
+    if (fetchSuccessfulRef.current) {
+      clearInterval(fetchSuccessfulRef.current);
+      fetchSuccessfulRef.current = null;
     }
   };
 
@@ -52,27 +60,27 @@ const useFetch = ({
     setLoading(true);
     const initialTime = Date.now();
     try {
-      const response = await api.get(url, {
+      const response = await apiService.get(url, {
         signal: abortController.current.signal,
       });
       const result = transformer ? transformer(response.data) : response.data;
       setData(result);
-      retryCount.current = 0;
+      retryCountRef.current = 0;
 
       if (onSuccess) {
         onSuccess(result);
       }
       // pollInterval will happen only if API run was successful
-      if (pollInterval && !fetchSuccessful.current) {
-        fetchSuccessful.current = setInterval(fetchResponse, pollInterval);
+      if (pollInterval && !fetchSuccessfulRef.current) {
+        fetchSuccessfulRef.current = setInterval(fetchResponse, pollInterval);
       }
     } catch (e: any) {
       if (e.name === "CanceledError" || e.name === "AbortError") {
         return;
       }
-      if (retryOnFailCount > retryCount.current) {
+      if (retryOnFailCount > retryCountRef.current) {
         setTimeout(() => {
-          retryCount.current += 1;
+          retryCountRef.current += 1;
           fetchResponse();
         }, retryOnFailInterval);
       } else {
@@ -86,7 +94,12 @@ const useFetch = ({
       const endTime = Date.now();
       const finalTime = endTime - initialTime;
       const leftOverTime = 2000 - finalTime;
-      setTimeout(() => setLoading(false), leftOverTime > 0 ? leftOverTime : 0);
+      setTimeout(
+        function () {
+          setLoading(false);
+        },
+        leftOverTime > 0 ? leftOverTime : 0
+      );
     }
   };
 
@@ -105,7 +118,7 @@ const useFetch = ({
     error,
     loading,
     refetch: fetchResponse,
-    cancel
+    cancel,
   };
 };
 
